@@ -1,5 +1,7 @@
 package uk.org.hekate.corpus;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.jetbrains.annotations.NotNull;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -9,11 +11,11 @@ import uk.org.hekate.xml.XmlParser;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.io.*;
+import java.lang.reflect.Type;
+import java.util.*;
+
+import static uk.org.hekate.utility.Console.Colour.*;
 
 
 public class BncLoader {
@@ -27,7 +29,23 @@ public class BncLoader {
     }
 
 
-    public void load(@NotNull String filename) throws XPathExpressionException, SAXException, IOException {
+    public void loadJson(@NotNull String filename) throws IOException {
+        try (FileReader reader = new FileReader(filename)) {
+            Type type = new TypeToken<Map<String, List<Definition>>>(){}.getType();
+            Map<String, List<Definition>> map = new Gson().fromJson(reader, type);
+
+            _map.clear();
+            _map.putAll(map);
+        }
+    }
+
+
+    public void loadXml(@NotNull String filename) throws XPathExpressionException, SAXException, IOException {
+        loadXml(filename, null);
+    }
+
+
+    public void loadXml(@NotNull String filename, Console.ConsoleState console) throws XPathExpressionException, SAXException, IOException {
         List<Node> nodes = _xmlParser.parse(new File(filename));
 
         int newDefinitions = 0;
@@ -65,7 +83,11 @@ public class BncLoader {
                 definitions.add(definition);
                 ++newDefinitions;
 
-                Console.writeLine("Word: " + type + " (" + category + ") " + head + " (" + text + ")");
+                if (console != null)
+                {
+                    console.setForeground(Green);
+                    console.writeLine("Word: " + type + " (" + category + ") " + head + " (" + text + ")");
+                }
             }
             else
             {
@@ -73,10 +95,49 @@ public class BncLoader {
             }
         }
 
-        Console.writeLine();
-        Console.writeLine(Integer.toString(nodes.size()) + " nodes");
-        Console.writeLine(Integer.toString(newDefinitions) + " words");
-        Console.writeLine(Integer.toString(_map.size()) + " head-words");
+        if (console != null) {
+            console.writeLine();
+            console.setForeground(Magenta);
+            console.writeLine(Integer.toString(nodes.size()) + " nodes");
+            console.writeLine(Integer.toString(newDefinitions) + " new words");
+            console.writeLine(Integer.toString(_map.size()) + " head-words");
+            console.writeLine();
+            console.setForeground(null);
+        }
+    }
+
+
+    public void loadXmlTree(@NotNull String filename) throws XPathExpressionException, IOException, SAXException {
+        loadXmlTree(filename, null);
+    }
+
+
+    public void loadXmlTree(@NotNull String filename, Console.ConsoleState console) throws IOException, XPathExpressionException, SAXException {
+        Queue<File> folders = new LinkedList<>();
+
+        folders.add(new File(filename));
+
+        while (!folders.isEmpty()) {
+            for (File entry : folders.remove().listFiles()) {
+                if (entry.isDirectory()) {
+                    folders.add(entry);
+                } else if (entry.isFile() && entry.getName().endsWith(".xml")) {
+                    if (console != null) {
+                        console.setForeground(Blue);
+                        console.writeLine(">> Found file: " + entry.getName());
+                        console.writeLine();
+                    }
+                    loadXml(entry.getAbsolutePath(), console);
+                }
+            }
+        }
+    }
+
+
+    public void saveJson(@NotNull String filename) throws IOException {
+        try (FileWriter writer = new FileWriter(filename)) {
+            new Gson().toJson(_map, writer);
+        }
     }
 
 
