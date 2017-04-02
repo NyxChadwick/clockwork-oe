@@ -1,23 +1,25 @@
 package uk.org.hekate.corpus;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.jetbrains.annotations.NotNull;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 import uk.org.hekate.utility.Console;
-import uk.org.hekate.utility.Json;
 import uk.org.hekate.utility.Xml;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
 import java.io.*;
+import java.lang.reflect.Type;
 import java.util.*;
 
 import static uk.org.hekate.utility.Console.Colour.*;
 
 
 public class BncLoader {
-    @NotNull private final Map<String, List<Definition>> _map;
+    @NotNull private final Map<String, List<Word>> _map;
     @NotNull private final Xml.Query _query;
 
 
@@ -46,16 +48,16 @@ public class BncLoader {
             String text = node.getTextContent().trim();
             String word = text.toLowerCase();
 
-            List<Definition> definitions = _map.getOrDefault(head, null);
+            List<Word> definitions = _map.getOrDefault(head, null);
 
             if (definitions == null) {
                 definitions = new ArrayList<>();
                 _map.put(head, definitions);
             }
 
-            Definition definition = null;
+            Word definition = null;
 
-            for (Definition candidate : definitions)
+            for (Word candidate : definitions)
             {
                 if (candidate.word.equals(word) && candidate.type.equals(type) && candidate.category.equals(category))
                 {
@@ -66,7 +68,7 @@ public class BncLoader {
 
             if (definition == null)
             {
-                definition = new Definition(word, type, category);
+                definition = new Word(word, type, category);
                 definitions.add(definition);
                 ++newDefinitions;
 
@@ -121,24 +123,34 @@ public class BncLoader {
     }
 
 
+    public Map<String, List<Word>> getMap() { return Collections.unmodifiableMap(_map); }
+
+
     public void load(@NotNull String filename) throws IOException {
-        _map.clear();
-        _map.putAll(new Json().load(filename));
+        try (FileReader reader = new FileReader(filename)) {
+            Type type = new TypeToken<HashMap<String, ArrayList<Word>>>(){}.getType();
+            HashMap<String, ArrayList<Word>> data = new Gson().fromJson(reader, type);
+
+            _map.clear();
+            _map.putAll(data);
+        }
     }
 
 
     public void save(@NotNull String filename) throws IOException {
-        new Json().save(filename, _map);
+        try (FileWriter writer = new FileWriter(filename)) {
+            writer.write(new Gson().toJson(_map));
+        }
     }
 
 
-    private static class Definition {
-        int count = 1;
-        @NotNull private final String category;
-        @NotNull private final String type;
-        @NotNull private final String word;
+    public static class Word {
+        public int count = 1;
+        @NotNull public final String category;
+        @NotNull public final String type;
+        @NotNull public final String word;
 
-        Definition(@NotNull String word, @NotNull String type, @NotNull String category) {
+        Word(@NotNull String word, @NotNull String type, @NotNull String category) {
             this.category = category;
             this.type = type;
             this.word = word;
