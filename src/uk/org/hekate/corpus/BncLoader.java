@@ -1,52 +1,39 @@
 package uk.org.hekate.corpus;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import org.jetbrains.annotations.NotNull;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 import uk.org.hekate.utility.Console;
-import uk.org.hekate.xml.XmlParser;
+import uk.org.hekate.utility.Json;
+import uk.org.hekate.utility.Xml;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
 import java.io.*;
-import java.lang.reflect.Type;
 import java.util.*;
 
 import static uk.org.hekate.utility.Console.Colour.*;
 
 
 public class BncLoader {
-    @NotNull private final HashMap<String, List<Definition>> _map;
-    @NotNull private final XmlParser _xmlParser;
+    @NotNull private final Map<String, List<Definition>> _map;
+    @NotNull private final Xml.Query _query;
 
 
     public BncLoader() throws XPathExpressionException, ParserConfigurationException {
         _map = new HashMap<>();
-        _xmlParser = new XmlParser("/bncDoc/wtext//w");
+        _query = new Xml.Query("/bncDoc/wtext//w");
     }
 
 
-    public void loadJson(@NotNull String filename) throws IOException {
-        try (FileReader reader = new FileReader(filename)) {
-            Type type = new TypeToken<Map<String, List<Definition>>>(){}.getType();
-            Map<String, List<Definition>> map = new Gson().fromJson(reader, type);
-
-            _map.clear();
-            _map.putAll(map);
-        }
+    public void appendXmlFile(@NotNull String filename) throws XPathExpressionException, SAXException, IOException, ParserConfigurationException {
+        appendXmlFile(filename, null);
     }
 
 
-    public void loadXml(@NotNull String filename) throws XPathExpressionException, SAXException, IOException {
-        loadXml(filename, null);
-    }
-
-
-    public void loadXml(@NotNull String filename, Console.ConsoleState console) throws XPathExpressionException, SAXException, IOException {
-        List<Node> nodes = _xmlParser.parse(new File(filename));
+    public void appendXmlFile(@NotNull String filename, Console.ConsoleState console) throws XPathExpressionException, SAXException, IOException, ParserConfigurationException {
+        List<Node> nodes = _query.execute(new File(filename));
 
         int newDefinitions = 0;
 
@@ -107,12 +94,12 @@ public class BncLoader {
     }
 
 
-    public void loadXmlTree(@NotNull String filename) throws XPathExpressionException, IOException, SAXException {
-        loadXmlTree(filename, null);
+    public void appendXmlFolder(@NotNull String filename) throws XPathExpressionException, IOException, SAXException, ParserConfigurationException {
+        appendXmlFolder(filename, null);
     }
 
 
-    public void loadXmlTree(@NotNull String filename, Console.ConsoleState console) throws IOException, XPathExpressionException, SAXException {
+    public void appendXmlFolder(@NotNull String filename, Console.ConsoleState console) throws IOException, XPathExpressionException, SAXException, ParserConfigurationException {
         Queue<File> folders = new LinkedList<>();
 
         folders.add(new File(filename));
@@ -127,17 +114,21 @@ public class BncLoader {
                         console.writeLine(">> Found file: " + entry.getName());
                         console.writeLine();
                     }
-                    loadXml(entry.getAbsolutePath(), console);
+                    appendXmlFile(entry.getAbsolutePath(), console);
                 }
             }
         }
     }
 
 
-    public void saveJson(@NotNull String filename) throws IOException {
-        try (FileWriter writer = new FileWriter(filename)) {
-            new Gson().toJson(_map, writer);
-        }
+    public void load(@NotNull String filename) throws IOException {
+        _map.clear();
+        _map.putAll(new Json().load(filename));
+    }
+
+
+    public void save(@NotNull String filename) throws IOException {
+        new Json().save(filename, _map);
     }
 
 

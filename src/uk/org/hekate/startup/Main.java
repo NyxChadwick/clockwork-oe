@@ -7,7 +7,6 @@ import uk.org.hekate.utility.Console;
 import javax.xml.parsers.*;
 import javax.xml.xpath.*;
 import java.io.*;
-import java.util.*;
 
 import static uk.org.hekate.utility.Console.Colour.*;
 
@@ -25,13 +24,13 @@ public class Main {
         try {
             BncLoader parser = new BncLoader();
 
-            parser.loadXmlTree("C:\\Users\\Prooskalia\\Desktop\\2554\\2554\\download\\Texts", console);
-            parser.saveJson("C:\\Temp\\SavedBNC.json");
+            parser.appendXmlFolder("C:\\Users\\Prooskalia\\Desktop\\2554\\2554\\download\\Texts", console);
+            parser.save("C:\\Temp\\SavedBNC.json");
 
         } catch (XPathExpressionException | ParserConfigurationException | SAXException | IOException e) {
             e.printStackTrace();
         }
-        
+
         console.writeLine();
         console.setForeground(Red);
         console.writeLine("<< FINISHED");
